@@ -1,0 +1,472 @@
+<!-- products.html -->
+{% extends 'stock_management/index.html' %}
+
+{% block title %}Products - Warehouse Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-box me-2"></i>Product Management</h2>
+    <div>
+        <span class="badge bg-primary fs-6">{{ products.count }} Total Products</span>
+    </div>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            <i class="fas fa-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}exclamation-triangle{% else %}info-circle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<div class="row">
+    <!-- Add Product Form -->
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-plus me-2"></i>Add New Product</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" id="productForm" novalidate>
+                    {% csrf_token %}
+                    
+                    <!-- Product Name Field -->
+                    <div class="mb-3">
+                        <label for="{{ form.prod_name.id_for_label }}" class="form-label fw-bold">
+                            <i class="fas fa-tag me-1"></i>{{ form.prod_name.label }}
+                            <span class="text-danger">*</span>
+                        </label>
+                        {{ form.prod_name }}
+                        {% if form.prod_name.help_text %}
+                            <small class="form-text text-muted">{{ form.prod_name.help_text }}</small>
+                        {% endif %}
+                        {% if form.prod_name.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in form.prod_name.errors %}
+                                    <i class="fas fa-exclamation-circle me-1"></i>{{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Product Description Field -->
+                    <div class="mb-3">
+                        <label for="{{ form.prod_desc.id_for_label }}" class="form-label fw-bold">
+                            <i class="fas fa-align-left me-1"></i>{{ form.prod_desc.label }}
+                        </label>
+                        {{ form.prod_desc }}
+                        {% if form.prod_desc.help_text %}
+                            <small class="form-text text-muted">{{ form.prod_desc.help_text }}</small>
+                        {% endif %}
+                        {% if form.prod_desc.errors %}
+                            <div class="invalid-feedback d-block">
+                                {% for error in form.prod_desc.errors %}
+                                    <i class="fas fa-exclamation-circle me-1"></i>{{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Active Status Field -->
+                    <div class="mb-4">
+                        <div class="form-check">
+                            {{ form.is_active }}
+                            <label for="{{ form.is_active.id_for_label }}" class="form-check-label fw-bold">
+                                <i class="fas fa-toggle-on me-1"></i>{{ form.is_active.label }}
+                            </label>
+                        </div>
+                        {% if form.is_active.help_text %}
+                            <small class="form-text text-muted">{{ form.is_active.help_text }}</small>
+                        {% endif %}
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-plus me-2"></i>Add Product
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Quick Stats Card -->
+        <div class="card border-0 shadow-sm mt-4">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Quick Stats</h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <div class="border-end">
+                            <h4 class="text-primary mb-1">{{ products.count }}</h4>
+                            <small class="text-muted">Total Products</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <h4 class="text-success mb-1">
+                            {% with active_count=0 %}
+                                {% for product in products %}
+                                    {% if product.is_active %}
+                                        {% with active_count=active_count|add:1 %}{% endwith %}
+                                    {% endif %}
+                                {% endfor %}
+                                {{ active_count }}
+                            {% endwith %}
+                        </h4>
+                        <small class="text-muted">Active</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Product List -->
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-list me-2"></i>Product List</h5>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-secondary" onclick="filterProducts('all')">
+                        All ({{ products.count }})
+                    </button>
+                    <button class="btn btn-sm btn-outline-success" onclick="filterProducts('active')">
+                        Active
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="filterProducts('inactive')">
+                        Inactive
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                {% if products %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0" id="productsTable">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th width="5%">#</th>
+                                    <th width="25%">
+                                        <i class="fas fa-tag me-1"></i>Name
+                                    </th>
+                                    <th width="40%">
+                                        <i class="fas fa-align-left me-1"></i>Description
+                                    </th>
+                                    <th width="15%">
+                                        <i class="fas fa-toggle-on me-1"></i>Status
+                                    </th>
+                                    <th width="15%">
+                                        <i class="fas fa-calendar me-1"></i>Created
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for product in products %}
+                                <tr class="product-row" data-status="{% if product.is_active %}active{% else %}inactive{% endif %}">
+                                    <td class="text-muted">{{ forloop.counter }}</td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="flex-shrink-0">
+                                                <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" 
+                                                     style="width: 40px; height: 40px;">
+                                                    <i class="fas fa-box"></i>
+                                                </div>
+                                            </div>
+                                            <div class="flex-grow-1 ms-3">
+                                                <strong class="text-dark">{{ product.prod_name }}</strong>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if product.prod_desc %}
+                                            <span class="text-muted">{{ product.prod_desc|truncatewords:12 }}</span>
+                                            {% if product.prod_desc|length > 80 %}
+                                                <button class="btn btn-sm btn-link p-0 ms-1" 
+                                                        onclick="showFullDescription('{{ product.prod_name|escapejs }}', '{{ product.prod_desc|escapejs }}')"
+                                                        title="Show full description">
+                                                    <i class="fas fa-expand-alt"></i>
+                                                </button>
+                                            {% endif %}
+                                        {% else %}
+                                            <em class="text-muted">No description provided</em>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if product.is_active %}
+                                            <span class="badge bg-success-soft text-success">
+                                                <i class="fas fa-check-circle me-1"></i>Active
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary-soft text-secondary">
+                                                <i class="fas fa-pause-circle me-1"></i>Inactive
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">
+                                            <i class="fas fa-calendar-alt me-1"></i>
+                                            {{ product.created_at|date:"M d, Y" }}
+                                        </small>
+                                        {% if product.updated_at != product.created_at %}
+                                            <br>
+                                            <small class="text-info">
+                                                <i class="fas fa-edit me-1"></i>
+                                                Updated: {{ product.updated_at|date:"M d" }}
+                                            </small>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-5">
+                        <div class="mb-3">
+                            <i class="fas fa-box-open fa-3x text-muted"></i>
+                        </div>
+                        <h5 class="text-muted">No products found</h5>
+                        <p class="text-muted">Add your first product using the form on the left.</p>
+                        <button class="btn btn-primary" onclick="document.querySelector('input[name=prod_name]').focus()">
+                            <i class="fas fa-plus me-2"></i>Add First Product
+                        </button>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+{% if products %}
+<div class="row mt-4">
+    <div class="col-md-3">
+        <div class="card text-center border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-center mb-2">
+                    <div class="bg-primary text-white rounded-circle p-3">
+                        <i class="fas fa-boxes fa-lg"></i>
+                    </div>
+                </div>
+                <h4 class="text-primary mb-1">{{ products.count }}</h4>
+                <small class="text-muted text-uppercase fw-bold">Total Products</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-center mb-2">
+                    <div class="bg-success text-white rounded-circle p-3">
+                        <i class="fas fa-check-circle fa-lg"></i>
+                    </div>
+                </div>
+                <h4 class="text-success mb-1">
+                    {% with active_count=0 %}
+                        {% for product in products %}
+                            {% if product.is_active %}
+                                {% with active_count=active_count|add:1 %}{% endwith %}
+                            {% endif %}
+                        {% endfor %}
+                        {{ active_count }}
+                    {% endwith %}
+                </h4>
+                <small class="text-muted text-uppercase fw-bold">Active Products</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-center mb-2">
+                    <div class="bg-secondary text-white rounded-circle p-3">
+                        <i class="fas fa-pause-circle fa-lg"></i>
+                    </div>
+                </div>
+                <h4 class="text-secondary mb-1">
+                    {% with inactive_count=0 %}
+                        {% for product in products %}
+                            {% if not product.is_active %}
+                                {% with inactive_count=inactive_count|add:1 %}{% endwith %}
+                            {% endif %}
+                        {% endfor %}
+                        {{ inactive_count }}
+                    {% endwith %}
+                </h4>
+                <small class="text-muted text-uppercase fw-bold">Inactive Products</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center justify-content-center mb-2">
+                    <div class="bg-info text-white rounded-circle p-3">
+                        <i class="fas fa-calendar-plus fa-lg"></i>
+                    </div>
+                </div>
+                <h4 class="text-info mb-1">
+                    {% if products %}
+                        {{ products|first|date:"M d" }}
+                    {% else %}
+                        --
+                    {% endif %}
+                </h4>
+                <small class="text-muted text-uppercase fw-bold">Latest Added</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Help Section -->
+<div class="mt-4">
+    <div class="alert alert-info border-0">
+        <div class="d-flex">
+            <div class="flex-shrink-0">
+                <i class="fas fa-info-circle fa-lg"></i>
+            </div>
+            <div class="flex-grow-1 ms-3">
+                <h6 class="alert-heading">Quick Tips:</h6>
+                <ul class="mb-0 small">
+                    <li><strong>Product names</strong> must be unique and at least 2 characters long</li>
+                    <li>Use the <strong>"Active"</strong> checkbox to enable/disable products</li>
+                    <li><strong>Inactive products</strong> won't appear in transaction forms</li>
+                    <li>Click the <strong>expand icon</strong> to view full product descriptions</li>
+                    <li>Use the <strong>filter buttons</strong> to quickly find active/inactive products</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Description Modal -->
+<div class="modal fade" id="descriptionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-align-left me-2"></i>
+                    <span id="modalProductName">Product Description</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="modalProductDescription" class="mb-0"></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.bg-success-soft { background-color: #d1e7dd !important; }
+.bg-secondary-soft { background-color: #e2e3e5 !important; }
+.product-row { transition: all 0.2s ease; }
+.product-row:hover { background-color: #f8f9fa; }
+</style>
+
+<script>
+// Auto-focus on product name field when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    const productNameField = document.querySelector('input[name="prod_name"]');
+    if (productNameField) {
+        productNameField.focus();
+    }
+});
+
+// Form validation and enhancement
+document.addEventListener('submit', function(e) {
+    const form = e.target;
+    if (form.id === 'productForm') {
+        const productName = form.querySelector('input[name="prod_name"]');
+        const submitBtn = form.querySelector('button[type="submit"]');
+        
+        if (productName && productName.value.trim().length < 2) {
+            e.preventDefault();
+            productName.classList.add('is-invalid');
+            productName.focus();
+            return false;
+        }
+        
+        // Add loading state
+        if (submitBtn) {
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Adding Product...';
+            submitBtn.disabled = true;
+        }
+    }
+});
+
+// Real-time validation feedback
+document.addEventListener('input', function(e) {
+    if (e.target.name === 'prod_name') {
+        const field = e.target;
+        const value = field.value.trim();
+        
+        // Remove previous validation classes
+        field.classList.remove('is-valid', 'is-invalid');
+        
+        if (value.length >= 2) {
+            field.classList.add('is-valid');
+        } else if (value.length > 0) {
+            field.classList.add('is-invalid');
+        }
+        
+        // Character counter
+        const maxLength = 100;
+        const currentLength = value.length;
+        
+        let counter = document.getElementById('name-counter');
+        if (!counter) {
+            counter = document.createElement('small');
+            counter.id = 'name-counter';
+            counter.className = 'form-text';
+            field.parentNode.appendChild(counter);
+        }
+        
+        counter.textContent = `${currentLength}/${maxLength} characters`;
+        counter.className = currentLength > 90 ? 'form-text text-warning' : 'form-text text-muted';
+    }
+});
+
+// Product filtering
+function filterProducts(status) {
+    const rows = document.querySelectorAll('.product-row');
+    const buttons = document.querySelectorAll('[onclick*="filterProducts"]');
+    
+    // Update button states
+    buttons.forEach(btn => btn.classList.remove('btn-primary'));
+    buttons.forEach(btn => btn.classList.add('btn-outline-secondary'));
+    event.target.classList.remove('btn-outline-secondary');
+    event.target.classList.add('btn-primary');
+    
+    // Filter rows
+    rows.forEach(row => {
+        if (status === 'all' || row.dataset.status === status) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+// Show full description modal
+function showFullDescription(productName, description) {
+    document.getElementById('modalProductName').textContent = productName;
+    document.getElementById('modalProductDescription').textContent = description;
+    new bootstrap.Modal(document.getElementById('descriptionModal')).show();
+}
+
+// Auto-capitalize product name
+document.addEventListener('blur', function(e) {
+    if (e.target.name === 'prod_name') {
+        const field = e.target;
+        const words = field.value.split(' ');
+        const capitalizedWords = words.map(word => 
+            word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+        );
+        field.value = capitalizedWords.join(' ');
+    }
+});
+</script>
+{% endblock %}

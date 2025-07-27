@@ -1,0 +1,149 @@
+<!-- inventory.html -->
+{% extends 'stock_management/index.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Current Inventory</h2>
+    <div>
+        <span class="badge bg-success me-2">Good Stock</span>
+        <span class="badge bg-warning me-2">Low Stock</span>
+        <span class="badge bg-danger">Out of Stock</span>
+    </div>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+{% if inventory_list %}
+<div class="table-responsive">
+    <table class="table table-striped table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th>Product Name</th>
+                <th>Current Stock</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in inventory_list %}
+            <tr class="{% if item.status == 'out_of_stock' %}table-danger{% elif item.status == 'low_stock' %}table-warning{% endif %}">
+                <td>
+                    <strong>{{ item.product.prod_name }}</strong>
+                    {% if item.product.prod_desc %}
+                        <br><small class="text-muted">{{ item.product.prod_desc|truncatewords:10 }}</small>
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="fs-5 fw-bold">{{ item.quantity }}</span>
+                </td>
+                <td>
+                    {% if item.status == 'good' %}
+                        <span class="badge bg-success">Good Stock</span>
+                    {% elif item.status == 'low_stock' %}
+                        <span class="badge bg-warning">Low Stock</span>
+                    {% else %}
+                        <span class="badge bg-danger">Out of Stock</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-outline-info" onclick="checkStock({{ item.product.id }})">
+                        Check Details
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="mt-4">
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">Total Products</h5>
+                    <h3 class="text-primary">{{ inventory_list|length }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">Low Stock Items</h5>
+                    <h3 class="text-warning">
+                        {% with low_stock=inventory_list|length %}
+                            {% for item in inventory_list %}
+                                {% if item.status == 'low_stock' %}{{ forloop.counter0 }}{% endif %}
+                            {% endfor %}
+                        {% endwith %}
+                    </h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">Out of Stock</h5>
+                    <h3 class="text-danger">
+                        {% for item in inventory_list %}
+                            {% if item.status == 'out_of_stock' %}{{ forloop.counter0 }}{% endif %}
+                        {% endfor %}
+                    </h3>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<div class="alert alert-info text-center">
+    <h4>No inventory data available</h4>
+    <p>Start by adding products and creating stock transactions.</p>
+    <a href="{% url 'product_list' %}" class="btn btn-primary me-2">Add Products</a>
+    <a href="{% url 'transaction_list' %}" class="btn btn-success">Create Transaction</a>
+</div>
+{% endif %}
+
+<!-- Modal for stock details -->
+<div class="modal fade" id="stockModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Stock Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="stockModalBody">
+                Loading...
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function checkStock(productId) {
+    fetch(`/api/stock/${productId}/`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                document.getElementById('stockModalBody').innerHTML = `
+                    <h6>${data.product_name}</h6>
+                    <p><strong>Current Stock:</strong> ${data.current_stock}</p>
+                    <p><strong>Status:</strong> <span class="badge bg-${data.stock_status === 'good' ? 'success' : data.stock_status === 'low_stock' ? 'warning' : 'danger'}">${data.stock_status.replace('_', ' ').toUpperCase()}</span></p>
+                `;
+                new bootstrap.Modal(document.getElementById('stockModal')).show();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error fetching stock details');
+        });
+}
+</script>
+{% endblock %}

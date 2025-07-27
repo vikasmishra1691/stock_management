@@ -1,0 +1,267 @@
+<!-- transactions.html -->
+{% extends 'stock_management/index.html' %}
+
+{% block content %}
+<h2>Stock Transactions</h2>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5>Create New Transaction</h5>
+    </div>
+    <div class="card-body">
+        <form method="post" id="transactionForm">
+            {% csrf_token %}
+            
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    {{ transaction_form.transaction_type.label_tag }}
+                    {{ transaction_form.transaction_type }}
+                    {% if transaction_form.transaction_type.errors %}
+                        <div class="text-danger">
+                            {% for error in transaction_form.transaction_type.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="col-md-4">
+                    {{ transaction_form.created_by.label_tag }}
+                    {{ transaction_form.created_by }}
+                    {% if transaction_form.created_by.errors %}
+                        <div class="text-danger">
+                            {% for error in transaction_form.created_by.errors %}
+                                <small>{{ error }}</small>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="mb-3">
+                {{ transaction_form.notes.label_tag }}
+                {{ transaction_form.notes }}
+                {% if transaction_form.notes.errors %}
+                    <div class="text-danger">
+                        {% for error in transaction_form.notes.errors %}
+                            <small>{{ error }}</small>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+
+            <h6>Transaction Items</h6>
+            <div id="formset-container">
+                {{ detail_forms.management_form }}
+                {% for form in detail_forms %}
+                    <div class="formset-form border rounded p-3 mb-2">
+                        <div class="row">
+                            <div class="col-md-4">
+                                {{ form.product.label_tag }}
+                                {{ form.product }}
+                                {% if form.product.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.product.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-2">
+                                {{ form.quantity.label_tag }}
+                                {{ form.quantity }}
+                                {% if form.quantity.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.quantity.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-2">
+                                {{ form.unit_price.label_tag }}
+                                {{ form.unit_price }}
+                                {% if form.unit_price.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.unit_price.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-3">
+                                {{ form.notes.label_tag }}
+                                {{ form.notes }}
+                                {% if form.notes.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.notes.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-1 d-flex align-items-end">
+                                {% if form.DELETE %}
+                                    {{ form.DELETE }}
+                                    <label for="{{ form.DELETE.id_for_label }}" class="btn btn-sm btn-outline-danger">Remove</label>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% if form.non_field_errors %}
+                            <div class="text-danger mt-2">
+                                {% for error in form.non_field_errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+
+            <div class="d-flex justify-content-between">
+                <button type="button" class="btn btn-secondary" onclick="addForm()">Add Item</button>
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-save"></i> Submit Transaction
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5>Recent Transactions</h5>
+        <span class="badge bg-info">{{ transactions.count }} Total</span>
+    </div>
+    <div class="card-body">
+        {% if transactions %}
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Created By</th>
+                            <th>Items</th>
+                            <th>Total Qty</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tx in transactions %}
+                        <tr>
+                            <td>
+                                <strong>{{ tx.created_at|date:"M d, Y" }}</strong><br>
+                                <small class="text-muted">{{ tx.created_at|time:"H:i" }}</small>
+                            </td>
+                            <td>
+                                {% if tx.transaction_type == 'IN' %}
+                                    <span class="badge bg-success">{{ tx.get_transaction_type_display }}</span>
+                                {% else %}
+                                    <span class="badge bg-warning">{{ tx.get_transaction_type_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if tx.created_by %}
+                                    {{ tx.created_by }}
+                                {% else %}
+                                    <em class="text-muted">Unknown</em>
+                                {% endif %}
+                            </td>
+                            <td>{{ tx.get_total_items }}</td>
+                            <td><strong>{{ tx.get_total_quantity }}</strong></td>
+                            <td>
+                                <a href="{% url 'transaction_detail' tx.id %}" class="btn btn-sm btn-outline-info">View Details</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-4">
+                <p class="text-muted">No transactions found. Create your first transaction above.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+let formCount = {{ detail_forms.total_form_count }};
+
+function addForm() {
+    const container = document.getElementById('formset-container');
+    const managementForm = document.querySelector('[name="form-TOTAL_FORMS"]');
+    
+    // Clone the last form
+    const lastForm = container.querySelector('.formset-form:last-child');
+    const newForm = lastForm.cloneNode(true);
+    
+    // Update form count
+    formCount++;
+    managementForm.value = formCount;
+    
+    // Clear values and update IDs/names
+    const inputs = newForm.querySelectorAll('input, select, textarea');
+    inputs.forEach(input => {
+        const name = input.getAttribute('name');
+        if (name) {
+            const newName = name.replace(/form-\d+/, `form-${formCount - 1}`);
+            input.setAttribute('name', newName);
+            input.setAttribute('id', `id_${newName}`);
+        }
+        if (input.type !== 'hidden') {
+            input.value = '';
+        }
+    });
+    
+    // Update labels
+    const labels = newForm.querySelectorAll('label');
+    labels.forEach(label => {
+        const forAttr = label.getAttribute('for');
+        if (forAttr) {
+            const newFor = forAttr.replace(/form-\d+/, `form-${formCount - 1}`);
+            label.setAttribute('for', newFor);
+        }
+    });
+    
+    container.appendChild(newForm);
+}
+
+// Dynamic stock checking
+document.addEventListener('change', function(e) {
+    if (e.target.name && e.target.name.includes('product')) {
+        const productSelect = e.target;
+        const transactionType = document.querySelector('[name="transaction_type"]').value;
+        
+        if (transactionType === 'OUT' && productSelect.value) {
+            fetch(`/api/stock/${productSelect.value}/`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        const formRow = productSelect.closest('.formset-form');
+                        const quantityInput = formRow.querySelector('[name*="quantity"]');
+                        
+                        if (data.current_stock <= 0) {
+                            alert(`Warning: ${data.product_name} is out of stock!`);
+                        } else if (data.current_stock <= 10) {
+                            alert(`Warning: ${data.product_name} has low stock (${data.current_stock} units)`);
+                        }
+                        
+                        quantityInput.setAttribute('max', data.current_stock);
+                        quantityInput.setAttribute('title', `Available stock: ${data.current_stock}`);
+                    }
+                });
+        }
+    }
+});
+</script>
+{% endblock %}
